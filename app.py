@@ -15,7 +15,27 @@ Design notes:
 
 from __future__ import annotations
 
+import os
+
 import streamlit as st
+
+# ---------------------------------------------------------------------------
+# Bridge Streamlit Cloud's secrets manager into environment variables
+# ---------------------------------------------------------------------------
+# Locally, extract.py reads GEMINI_API_KEY / GEMINI_MODEL via os.getenv(),
+# populated from a local .env file (see extract.py's load_dotenv() call).
+# Streamlit Community Cloud has no .env file -- secrets are set through its
+# own dashboard (Settings -> Secrets) and exposed via st.secrets instead.
+# Copying them into os.environ here means extract.py's os.getenv() calls
+# work identically in both places, with zero branching logic needed.
+# Wrapped in try/except because st.secrets raises if no secrets.toml exists
+# at all (the normal case for local development, where .env is used instead).
+try:
+    for _key in ("GEMINI_API_KEY", "GEMINI_MODEL"):
+        if _key in st.secrets:
+            os.environ[_key] = st.secrets[_key]
+except Exception:
+    pass  # no secrets.toml locally -- .env (loaded by extract.py) is used instead
 
 from parser import SessionWorkspace, parse_document
 from extract import extract_contract_chunked, ExtractionError
