@@ -46,10 +46,23 @@ those rather than fabricating typical values.
 
 ## Field shape
 
-Every extracted field (except plain_english_summary, risk_flags and \
+Every extracted field (except plain_english_summary, risk_flags, products and \
 fields_not_found) uses this exact shape:
     {"value": <string or null>, "evidence": {"page": <int or null>, "quote": <string or null>} or null}
 If value is null, evidence should also be null.
+
+## Product / line-item table
+
+Many contracts include an order form, license schedule, quote, or SKU table \
+listing the specific products/licenses being purchased -- separate from the \
+general contract terms. If ANY such table or list is present, extract EVERY \
+row into the `products` array, one entry per distinct product/SKU line. \
+Do not summarise or merge rows together -- if the source lists 5 line items, \
+return 5 entries. If no such table exists in the document, return an empty \
+array -- do not invent line items from general contract language.
+For `license_type`, use exactly 'subscription', 'perpetual', or 'unclear'.
+Each product entry needs only ONE evidence reference (not one per field), \
+pointing at the table row it came from.
 
 ## Output rules
 
@@ -104,6 +117,20 @@ def _schema_skeleton() -> dict:
     return {
         "vendor_name": worked_example,
         "<all fields below use the SAME {value, evidence} shape as vendor_name above>": same_shape_fields,
+        "products": [
+            {
+                "publisher_part_number": "string or null",
+                "product_name": "string or null",
+                "license_type": "'subscription' | 'perpetual' | 'unclear' | null",
+                "license_metric": "string or null",
+                "purchased_rights": "string or null, e.g. '500 users'",
+                "unit_cost": "string or null",
+                "start_date": "string or null",
+                "end_date": "string or null",
+                "country_of_agreement": "string or null",
+                "evidence": {"page": "int or null", "quote": "string or null"},
+            }
+        ],
         "plain_english_summary": "string, <=5 sentences",
         "risk_flags": [
             {

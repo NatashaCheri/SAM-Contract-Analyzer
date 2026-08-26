@@ -20,7 +20,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
 )
 
-from schema import ContractExtraction, ExtractedField
+from schema import ContractExtraction, ExtractedField, ProductLineItem
 
 # ---------------------------------------------------------------------------
 # Palette (matches the Streamlit app's ledger/audit theme)
@@ -87,6 +87,54 @@ def _field_block(styles, label: str, field: ExtractedField | None):
     return flow
 
 
+def _products_table(products: list[ProductLineItem]):
+    """
+    Renders the product/license line-item table. Uses Paragraph cells
+    (rather than plain strings) so long product names wrap instead of
+    overflowing -- 9 columns on a letter-width page leaves little room per
+    column, so wrapping is essential rather than cosmetic.
+    """
+    header_style = ParagraphStyle(
+        name="TableHeader", fontName="Helvetica-Bold", fontSize=6.5,
+        textColor=colors.white, leading=8,
+    )
+    cell_style = ParagraphStyle(
+        name="TableCell", fontName="Helvetica", fontSize=6.5,
+        textColor=INK, leading=8,
+    )
+
+    headers = [
+        "Part #", "Product Name", "License Type", "License Metric",
+        "Purchased Rights", "Unit Cost", "Start Date", "End Date", "Country",
+    ]
+    table_data = [[Paragraph(h, header_style) for h in headers]]
+
+    for p in products:
+        row_values = [
+            p.publisher_part_number, p.product_name, p.license_type,
+            p.license_metric, p.purchased_rights, p.unit_cost,
+            p.start_date, p.end_date, p.country_of_agreement,
+        ]
+        table_data.append([Paragraph(v or "—", cell_style) for v in row_values])
+
+    col_widths = [
+        0.7 * inch, 1.3 * inch, 0.65 * inch, 0.75 * inch, 0.75 * inch,
+        0.6 * inch, 0.55 * inch, 0.55 * inch, 0.55 * inch,
+    ]
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), ACCENT),
+        ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F9F7")]),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    return [table, Spacer(1, 10)]
+
+
 def generate_pdf_report(extraction: ContractExtraction, source_filename: str) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -130,6 +178,11 @@ def generate_pdf_report(extraction: ContractExtraction, source_filename: str) ->
             ]))
             story.append(row)
         story.append(Spacer(1, 8))
+
+    # --- Products / license line items ---
+    if extraction.products:
+        story.append(Paragraph("Products / License Line Items", styles["SectionHeading"]))
+        story.extend(_products_table(extraction.products))
 
     # --- Sections of extracted fields ---
     sections = [

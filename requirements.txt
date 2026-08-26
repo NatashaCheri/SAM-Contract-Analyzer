@@ -10,6 +10,7 @@ python-dotenv    # loads GEMINI_API_KEY from a local .env file
 
 # --- App / UI ---
 streamlit        # web app framework
+pandas           # used to render the products table in the UI
 
 # --- Testing / fixture generation only ---
 reportlab        # also used in production for the downloadable PDF report

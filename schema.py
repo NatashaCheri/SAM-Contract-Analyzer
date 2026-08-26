@@ -38,6 +38,30 @@ class RiskFlag(BaseModel):
     evidence: Optional[Evidence] = None
 
 
+class ProductLineItem(BaseModel):
+    """
+    One line item from a contract's order form / license schedule / SKU
+    table -- the actual products/licenses being purchased, as opposed to
+    the top-level contract terms captured elsewhere in this schema.
+
+    Uses a single evidence reference per row (rather than per field, like
+    the top-level fields do) since a line item's fields typically all come
+    from the same table row -- one page/quote pointing at that row is
+    enough to verify the whole line, and asking for 9 separate evidence
+    quotes per product would balloon token usage for little extra value.
+    """
+    publisher_part_number: Optional[str] = None
+    product_name: Optional[str] = None
+    license_type: Optional[str] = Field(None, description="'subscription' | 'perpetual' | 'unclear'")
+    license_metric: Optional[str] = Field(None, description="e.g. per-user, per-core, concurrent")
+    purchased_rights: Optional[str] = Field(None, description="quantity/entitlement, e.g. '500 users', '100 cores'")
+    unit_cost: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    country_of_agreement: Optional[str] = None
+    evidence: Optional[Evidence] = None
+
+
 class ContractExtraction(BaseModel):
     # --- Identification ---
     vendor_name: Optional[ExtractedField] = None
@@ -74,6 +98,12 @@ class ContractExtraction(BaseModel):
     # --- SLA & exit ---
     sla_summary: Optional[ExtractedField] = None
     data_exit_transition_period: Optional[ExtractedField] = None
+
+    # --- Product / line-item table ---
+    products: list[ProductLineItem] = Field(
+        default_factory=list,
+        description="Line items from an order form, license schedule, or SKU table, if present",
+    )
 
     # --- Narrative + risk ---
     plain_english_summary: str = Field(..., description="3-5 sentence plain-English summary of the contract")

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field as dc_field
 
-from schema import ContractExtraction, ExtractedField, RiskFlag
+from schema import ContractExtraction, ExtractedField, RiskFlag, ProductLineItem
 
 # Fields merged structurally, in the order they should be checked/reported.
 _FIELD_NAMES = [
@@ -31,6 +31,32 @@ _FIELD_NAMES = [
 ]
 
 MAX_MERGED_RISK_FLAGS = 8
+MAX_MERGED_PRODUCTS = 200  # generous -- a real license schedule can run long
+
+
+def _dedupe_products(all_products: list[ProductLineItem]) -> list[ProductLineItem]:
+    """
+    Overlap pages mean the same line item can legitimately show up in two
+    consecutive chunks -- dedupe on (part number, product name) so it's
+    counted once, while keeping distinct rows (different SKUs, or the same
+    product across two different order forms) intact.
+    """
+    seen: set[tuple[str, str]] = set()
+    deduped: list[ProductLineItem] = []
+
+    for product in all_products:
+        key = (
+            (product.publisher_part_number or "").strip().lower(),
+            (product.product_name or "").strip().lower(),
+        )
+        if key == ("", ""):
+            continue  # skip entries with no identifying info at all
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(product)
+
+    return deduped[:MAX_MERGED_PRODUCTS]
 
 
 @dataclass
@@ -83,6 +109,9 @@ def merge_extractions(chunk_results: list[ContractExtraction]) -> MergeResult:
 
     all_flags = [flag for result in chunk_results for flag in result.risk_flags]
     merged_data["risk_flags"] = _dedupe_risk_flags(all_flags)
+
+    all_products = [product for result in chunk_results for product in result.products]
+    merged_data["products"] = _dedupe_products(all_products)
 
     # a field only counts as "not found" if it was null in every single chunk
     not_found_everywhere = set(_FIELD_NAMES)

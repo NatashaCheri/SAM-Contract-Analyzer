@@ -379,6 +379,27 @@ elif st.session_state.stage == "results":
             )
         st.write("")
 
+    # --- Products / license line items ---
+    if extraction.products:
+        st.markdown("#### Products / License Line Items")
+        import pandas as pd
+        products_df = pd.DataFrame([
+            {
+                "Part #": p.publisher_part_number or "—",
+                "Product Name": p.product_name or "—",
+                "License Type": p.license_type or "—",
+                "License Metric": p.license_metric or "—",
+                "Purchased Rights": p.purchased_rights or "—",
+                "Unit Cost": p.unit_cost or "—",
+                "Start Date": p.start_date or "—",
+                "End Date": p.end_date or "—",
+                "Country": p.country_of_agreement or "—",
+            }
+            for p in extraction.products
+        ])
+        st.dataframe(products_df, use_container_width=True, hide_index=True)
+        st.write("")
+
     # --- Field sections ---
     def render_field(label: str, field):
         if field is None or not field.value:

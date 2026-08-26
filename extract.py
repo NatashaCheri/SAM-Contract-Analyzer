@@ -117,6 +117,18 @@ def _sanitize_extraction_payload(data: dict) -> dict:
             cleaned.append(item)
         data["risk_flags"] = cleaned
 
+    # products must be a list of dicts -- same defensive cleanup as risk_flags
+    products = data.get("products")
+    if isinstance(products, list):
+        cleaned_products = []
+        for item in products:
+            if not isinstance(item, dict):
+                continue
+            if not isinstance(item.get("evidence"), dict):
+                item["evidence"] = None
+            cleaned_products.append(item)
+        data["products"] = cleaned_products
+
     # fields_not_found must be a list of strings
     fnf = data.get("fields_not_found")
     if isinstance(fnf, list):
